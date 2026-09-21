@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BlockCraft 2.0</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="topbar">
+      <div class="brand">BlockCraft 2.0</div>
+      <div class="stats">
+        <span id="selectedLabel">Selected: Grass</span>
+        <span id="coordLabel">Coords: 0, 0</span>
+      </div>
+    </div>
+
+    <canvas id="gameCanvas" width="960" height="540"></canvas>
+
+    <div id="hotbar" aria-label="Inventory hotbar"></div>
+
+    <div class="controls">
+      <span>Move: A / D or ← / →</span>
+      <span>Jump: W / ↑ / Space</span>
+      <span>Mine: Left Click</span>
+      <span>Build: Right Click</span>
+      <span>Hotbar: 1-5</span>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
