@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MathCraft 3D</title>
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:#87ceeb;font-family:Arial,sans-serif}#game{display:block;width:100vw;height:100vh}#crosshair{position:fixed;left:50%;top:50%;width:18px;height:18px;transform:translate(-50%,-50%);pointer-events:none}#crosshair:before,#crosshair:after{content:"";position:absolute;background:#fff;box-shadow:1px 1px #000}.crosshair:before{width:2px;height:18px;left:8px}.crosshair:after{height:2px;width:18px;top:8px}#hud{position:fixed;left:14px;top:14px;color:#fff;text-shadow:2px 2px #000;font-size:14px;line-height:1.5;pointer-events:none}#hotbar{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);display:flex;gap:4px}.slot{width:48px;height:48px;border:3px solid #555;background:#333d;color:#fff;text-align:center;padding:2px;font-size:11px}.slot.selected{border-color:#ffd43b;background:#6b5725dd}.swatch{width:25px;height:25px;margin:2px auto;border:2px solid #222}.screen{position:fixed;inset:0;display:grid;place-items:center;background:#0008;color:#fff;text-align:center}.screen.hidden{display:none}.card{background:#19212bfa;border:4px solid #7d8791;padding:28px;max-width:440px;box-shadow:0 12px 30px #0008}.card h1{margin:0 0 10px;font-size:40px;letter-spacing:4px;text-shadow:3px 3px #000}.card button{padding:12px 25px;background:#596b7c;color:#fff;border:2px solid #c9d4df;font-weight:bold;cursor:pointer}.small{font-size:13px;color:#d5dde5}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas><div id="crosshair" class="crosshair"></div>
+<div id="hud">MathCraft 3D<br>WASD move · Space jump<br>Left click mine · Right click place<br>1–6 select block · Esc unlock mouse</div>
+<div id="hotbar"></div>
+<div id="start" class="screen"><div class="card"><h1>MATHCRAFT</h1><p>Block world in first-person 3D.</p><p class="small">Click Start, then use the mouse to look around.</p><button id="startButton">Start Game</button></div></div>
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+
+const canvas=document.getElementById('game');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:false});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(innerWidth,innerHeight);
+renderer.shadowMap.enabled=true;
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x86cffa);
+scene.fog=new THREE.Fog(0x86cffa,18,75);
+const camera=new THREE.PerspectiveCamera( seventy=75, innerWidth/innerHeight, .05, 150);
+const player=new THREE.Object3D();
+player.position.set(0,4,8);player.add(camera);scene.add(player);
+const pitch=new THREE.Object3D();pitch.add(camera);player.add(pitch);player.remove(camera);pitch.add(camera);
+const hemi=new THREE.HemisphereLight(0xbde8ff,0x4a3928,1.8);scene.add(hemi);
+const sun=new THREE.DirectionalLight(0xffffff,2.2);sun.position.set(-20,35,15);sun.castShadow=true;scene.add(sun);
+const materials={grass:new THREE.MeshLambertMaterial({color:0x55a83d}),dirt:new THREE.MeshLambertMaterial({color:0x87552f}),stone:new THREE.MeshLambertMaterial({color:0x858b91}),wood:new THREE.MeshLambertMaterial({color:0x98602f}),leaves:new THREE.MeshLambertMaterial({color:0x2f813b}),glass:new THREE.MeshLambertMaterial({color:0x9ee9f2,transparent:true,opacity:.55})};
+const blocks=new Map(),cube=new THREE.BoxGeometry(1,1,1),keys={};
+const hot=[['grass','Grass'],['dirt','Dirt'],['stone','Stone'],['wood','Wood'],['leaves','Leaves'],['glass','Glass']];let selected=0;
+const hotbar=document.getElementById('hotbar');
+hot.forEach(([key,label],i)=>{const el=document.createElement('div');el.className='slot'+(i===0?' selected':'');el.innerHTML='<div class="swatch" style="background:#'+materials[key].color.getHexString()+'"></div>'+label;el.onclick=()=>select(i);hotbar.appendChild(el)});
+function select(i){selected=i;[...hotbar.children].forEach((el,n)=>el.classList.toggle('selected',n===i))}
+function addBlock(x,y,z,type){const k=`${x},${y},${z}`;if(blocks.has(k))return;const mesh=new THREE.Mesh(cube,materials[type]||materials.stone);mesh.position.set(x+.5,y+.5,z+.5);mesh.castShadow=true;mesh.receiveShadow=true;mesh.userData={x,y,z,type};scene.add(mesh);blocks.set(k,mesh)}
+function removeBlock(x,y,z){const k=`${x},${y},${z}`,mesh=blocks.get(k);if(!mesh)return;scene.remove(mesh);blocks.delete(k)}
+function terrainHeight(x,z){return 2+Math.floor(1.7*Math.sin(x*.35)+1.5*Math.cos(z*.27)+.8*Math.sin((x+z)*.19))}
+for(let x=-20;x<20;x++)for(let z=-20;z<20;z++){const h=Math.max(1,terrainHeight(x,z));for(let y=0;y<=h;y++)addBlock(x,y,z,y===h?'grass':y>h-3?'dirt':'stone');if((x*13+z*7)%31===0&&h>2){for(let y=1;y<4;y++)addBlock(x,h+y,z,'wood');for(let dx=-2;dx<=2;dx++)for(let dz=-2;dz<=2;dz++)for(let dy=3;dy<=5;dy++)if(Math.abs(dx)+Math.abs(dz)<4)addBlock(x+dx, h+dy,z+dz,'leaves')}}
+const raycaster=new THREE.Raycaster();const center=new THREE.Vector2(0,0);const velocity=new THREE.Vector3();let grounded=false;
+function solidAt(x,y,z){return blocks.has(`${Math.floor(x)},${Math.floor(y)},${Math.floor(z)}`)}
+function collides(pos){const r=.28;for(let x=Math.floor(pos.x-r);x<=Math.floor(pos.x+r);x++)for(let y=Math.floor(pos.y);y<=Math.floor(pos.y+1.7);y++)for(let z=Math.floor(pos.z-r);z<=Math.floor(pos.z+r);z++)if(solidAt(x,y,z))return true;return false}
+function moveAxis(axis,amount){const next=player.position.clone();next[axis]+=amount;if(!collides(next))player.position[axis]=next[axis];else if(axis==='y'){if(amount<0)grounded=true;velocity.y=0}}
+function target(){raycaster.setFromCamera(center,camera);return raycaster.intersectObjects([...blocks.values()])[0]}
+function mine(){const hit=target();if(hit&&hit.distance<7){const {x,y,z}=hit.object.userData;removeBlock(x,y,z)}}
+function place(){const hit=target();if(!hit||hit.distance>=7)return;const n=hit.face.normal;const b=hit.object.userData;const x=b.x+n.x,y=b.y+n.y,z=b.z+n.z;if(!solidAt(x,y,z))addBlock(x,y,z,hot[selected][0])}
+addEventListener('keydown',e=>{keys[e.code]=true;if(e.code.startsWith('Digit')){const n=Number(e.code.slice(5))-1;if(n>=0&&n<hot.length)select(n)}if(e.code==='Space'&&grounded){velocity.y=7;grounded=false}});addEventListener('keyup',e=>keys[e.code]=false);
+canvas.addEventListener('mousedown',e=>{if(document.pointerLockElement!==canvas){canvas.requestPointerLock();return}if(e.button===0)mine();if(e.button===2)place()});canvas.oncontextmenu=e=>e.preventDefault();addEventListener('mousemove',e=>{if(document.pointerLockElement!==canvas)return;player.rotation.y-=e.movementX*.0025;pitch.rotation.x=Math.max(-1.45,Math.min(1.45,pitch.rotation.x-e.movementY*.0025))});
+document.getElementById('startButton').onclick=()=>{document.getElementById('start').classList.add('hidden');canvas.requestPointerLock()};
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+let last=performance.now();function loop(now){const dt=Math.min(.05,(now-last)/1000);last=now;const forward=(keys.KeyW?1:0)-(keys.KeyS?1:0),side=(keys.KeyD?1:0)-(keys.KeyA?1:0);const speed=5;const dir=new THREE.Vector3(side,0,-forward).normalize().applyAxisAngle(new THREE.Vector3(0,1,0),player.rotation.y);moveAxis('x',dir.x*speed*dt);moveAxis('z',dir.z*speed*dt);grounded=false;velocity.y-=18*dt;moveAxis('y',velocity.y*dt);if(player.position.y<1){player.position.y=1;velocity.y=0;grounded=true}renderer.render(scene,camera);requestAnimationFrame(loop)}requestAnimationFrame(loop);
+</script>
+</body>
+</html>
+``` fable 
